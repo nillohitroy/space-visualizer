@@ -1,0 +1,34 @@
+[
+    {
+        "platform": "NASA_L_Band",
+        "scene_id": "scene_0",
+        "mean_rvi": 0.841,
+        "mean_roughness_db": -10.28,
+        "scientific_hypothesis": "Stable natural processes. Normal vegetative volume scattering observed.",
+        "ml_clusters_detected": 3
+    },
+    {
+        "platform": "NASA_L_Band",
+        "scene_id": "scene_1",
+        "mean_rvi": 0.765,
+        "mean_roughness_db": -9.94,
+        "scientific_hypothesis": "Stable natural processes. Normal vegetative volume scattering observed.",
+        "ml_clusters_detected": 3
+    },
+    {
+        "platform": "NASA_L_Band",
+        "scene_id": "scene_2",
+        "mean_rvi": 0.786,
+        "mean_roughness_db": -40.23,
+        "scientific_hypothesis": "Stable natural processes. Normal vegetative volume scattering observed.",
+        "ml_clusters_detected": 3
+    },
+    {
+        "platform": "ISRO_S_Band",
+        "scene_id": "NISAR_S2_PR_GCOV_028_141_A_015_3700_DHNA_A_20260822T231345_20260822T231422_P00500_M_F_I_001",
+        "mean_rvi": 1.01,
+        "mean_roughness_db": -9.45,
+        "scientific_hypothesis": "Stable natural processes. Normal vegetative volume scattering observed.",
+        "ml_clusters_detected": 3
+    }
+]

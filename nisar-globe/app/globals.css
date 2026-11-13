@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+  
+  --color-space-800: #151926;
+  --color-space-850: #10131d;
+  --color-space-900: #0c0f17;
+  --color-space-950: #07090e;
+  
+  --color-cyan-accent: #00f2fe;
+  --color-cyan-bright: #38bdf8;
+  
+  --color-primary-container: #00f2fe;
+  --color-primary-fixed: #6ff6ff;
+}
+
+:root {
+  --background: var(--color-space-950);
+  --foreground: #cbd5e1; 
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  overflow-x: hidden;
+}
+
+/* Custom Scrollbar for a sleek terminal feel */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-space-900);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 242, 254, 0.3);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 242, 254, 0.6);
+}
+
+/* HUD Glassmorphism & Glows */
+.hud-backdrop {
+  background: rgba(16, 19, 29, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(56, 189, 248, 0.15);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+}
+
+.cyan-glow {
+  box-shadow: 0 0 20px -2px rgba(0, 242, 254, 0.25);
+}
+
+.bg-grid-mesh {
+  background-size: 30px 30px;
+  background-image: 
+    linear-gradient(to right, rgba(0, 242, 254, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 242, 254, 0.03) 1px, transparent 1px);
+}
