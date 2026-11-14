@@ -1,7 +1,7 @@
-# The Living Pulse of Earth: Advanced Radar Geodesy & NISAR Analytics Platform
+# Dancing with the SARs: Space Visualizer Platform
 
 ## Overview
-**The Living Pulse of Earth** is a high-throughput web workstation designed to process, analyze, and visualize synthetic aperture radar (SAR) data from NASA and ISRO missions (including the upcoming NISAR mission). 
+**Space Visualizer** is a high-throughput web workstation designed to process, analyze, and visualize synthetic aperture radar (SAR) data from NASA and ISRO missions. 
 
 By leveraging dual-band (L-Band and S-Band) radar telemetry, this platform bridges the gap between raw space agency data and interactive, client-side geospatial intelligence. It translates complex radar backscatter into intuitive AI classification masks and time-series telemetry, providing all-weather, real-time Earth observation insights.
 
@@ -12,7 +12,7 @@ By leveraging dual-band (L-Band and S-Band) radar telemetry, this platform bridg
 ## Our Solution
 We built a full-stack Next.js web application featuring a custom **client-side GeoTIFF canvas parser**. This engine bypasses browser rendering limitations, parsing heavy geospatial raster bands directly onto HTML5 canvases with zero server-side bottlenecks. 
 
-Backed by a Python/Kaggle processing pipeline, the application allows users to interactively track surface changes, track natural disasters, and monitor human impact on the environment regardless of weather conditions.
+Backed by a processing pipeline, the application allows users to interactively track surface changes, track natural disasters, and monitor human impact on the environment regardless of weather conditions.
 
 ## Key Features
 
