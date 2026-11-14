@@ -1,67 +1,15 @@
-"use client";
-
-import { useState } from 'react';
 import InteractiveGlobe from '@/components/InteractiveGlobe';
-import { Activity, Crosshair, Radar, ArrowRight, Database, Cpu, Waves, Trees } from 'lucide-react';
+import { Crosshair, Radar, ArrowRight, Database, Activity, Waves, Trees } from 'lucide-react';
 import Link from 'next/link';
 
 export default function HomePage() {
-  const [scanData, setScanData] = useState<any>(null);
-  const [isScanning, setIsScanning] = useState(false);
-
-  const handleGlobeClick = (coords: number[]) => {
-    setIsScanning(true);
-    setScanData(null);
-    
-    setTimeout(() => {
-      const lon = coords[0];
-      const lat = coords[1];
-      let status = "";
-      let clusters = "";
-      let rvi = 0;
-      let roughness = 0;
-
-      // Geospatial ML Logic Simulator
-      if (lat > 60 || lat < -60) {
-        status = "Glacial Ice Melt / Crevasse Formation";
-        clusters = "Ice, Firn, Open Water";
-        rvi = Math.random() * 0.1;
-        roughness = -(Math.random() * 5 + 20);
-      } else if (lat < 15 && lat > -15) {
-        status = "High Biomass / Selective Logging Risk";
-        clusters = "Dense Canopy, Cleared, Riverine";
-        rvi = Math.random() * 0.3 + 0.6;
-        roughness = -(Math.random() * 5 + 8);
-      } else if (lon > 60 && lon < 100 && lat > 10 && lat < 30) {
-        status = "High Flood Inundation Risk (Monsoon)";
-        clusters = "Water, Flooded Veg, Soil";
-        rvi = Math.random() * 0.4 + 0.2;
-        roughness = -(Math.random() * 10 + 10);
-      } else {
-        status = "Stable Surface / Agricultural Cycle";
-        clusters = "Crops, Urban, Bare Earth";
-        rvi = Math.random() * 0.5 + 0.1;
-        roughness = -(Math.random() * 8 + 12);
-      }
-
-      setScanData({
-        lat: lat.toFixed(4),
-        lon: lon.toFixed(4),
-        rvi: rvi.toFixed(3),
-        roughness: roughness.toFixed(1),
-        clusters: clusters,
-        status: status
-      });
-      setIsScanning(false);
-    }, 2500);
-  };
-
   return (
     <div className="w-full min-h-screen bg-space-950 font-sans">
       
       {/* HERO SECTION: 3D Earth */}
       <div className="relative w-full h-screen border-b border-slate-800 flex flex-col justify-between">
-        <InteractiveGlobe onScanTarget={handleGlobeClick} />
+        {/* Globe without the onScanTarget prop */}
+        <InteractiveGlobe />
         
         {/* Gradient Overlay (Allows clicks through to globe) */}
         <div className="absolute inset-0 bg-gradient-to-t from-space-950 via-transparent to-space-950/40 pointer-events-none z-0" />
@@ -76,59 +24,13 @@ export default function HomePage() {
             </div>
             <h1 className="text-4xl sm:text-6xl font-bold text-white mb-4 tracking-tight drop-shadow-lg shadow-black">The Living Pulse of Earth</h1>
             <p className="text-sm sm:text-base text-slate-100 leading-relaxed drop-shadow-md shadow-black font-medium">
-              Click anywhere on the globe to drop a targeted Area of Interest (AOI). 
-              Our engine simulates NISAR L-Band and S-Band data extraction to classify surface features instantly.
+              Explore the globe to visualize the power of NISAR L-Band and S-Band data extraction.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end pointer-events-none">
             
-            {/* Interactive ML Scanner Panel (Pointer events restored for this specific box) */}
-            <div className="md:col-span-5 lg:col-span-4 hud-backdrop rounded-xl p-5 shadow-2xl pointer-events-auto">
-              <div className="flex items-center gap-2 border-b border-slate-700/50 pb-3 mb-4">
-                <Cpu className="w-4 h-4 text-cyan-accent" />
-                <span className="font-bold tracking-wider text-slate-200 text-xs font-mono">AOI MACHINE LEARNING ENGINE</span>
-              </div>
-              
-              {!isScanning && !scanData && (
-                <div className="text-center py-6 text-slate-500 text-xs font-mono border border-dashed border-slate-700 rounded-lg">
-                  Awaiting Target Coordinates.<br/>Click the globe to initiate scan.
-                </div>
-              )}
-
-              {isScanning && (
-                <div className="text-center py-6 flex flex-col items-center gap-3">
-                  <div className="w-6 h-6 border-2 border-cyan-accent border-t-transparent rounded-full animate-spin"></div>
-                  <span className="text-cyan-accent text-xs font-mono animate-pulse">Extracting PolSAR Data...</span>
-                </div>
-              )}
-
-              {scanData && (
-                <div className="space-y-3 font-mono">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-slate-400">Target (Lat/Lon):</span>
-                    <span className="text-white">{scanData.lat}°, {scanData.lon}°</span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-slate-400">Mean RVI:</span>
-                    <span className="text-cyan-accent font-bold">{scanData.rvi}</span>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="text-slate-400">Roughness:</span>
-                    <span className="text-amber-400 font-bold">{scanData.roughness} dB</span>
-                  </div>
-                  <div className="flex justify-between text-xs border-t border-slate-700/50 pt-2">
-                    <span className="text-slate-400">Detected Classes:</span>
-                    <span className="text-white text-right">{scanData.clusters}</span>
-                  </div>
-                  <div className="bg-cyan-950/40 p-2 rounded border border-cyan-900 mt-2 text-[10px] text-cyan-300">
-                    HYPOTHESIS: {scanData.status}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="hidden md:block md:col-span-2 lg:col-span-4" />
+            <div className="hidden md:block md:col-span-7 lg:col-span-8" />
 
             {/* Navigation Modes (Pointer events restored for clickable links) */}
             <div className="md:col-span-5 lg:col-span-4 hud-backdrop rounded-xl p-5 pointer-events-auto">

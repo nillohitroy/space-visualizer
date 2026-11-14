@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import DeckGL from '@deck.gl/react';
 import { _GlobeView as GlobeView } from '@deck.gl/core';
 import { TileLayer } from '@deck.gl/geo-layers';
 import { BitmapLayer, ScatterplotLayer } from '@deck.gl/layers';
-import { Waves, Trees, ThermometerSun, Map, ArrowRight, ShieldAlert, Mountain, Droplets } from 'lucide-react';
+import { Waves, Trees, ThermometerSun, Mountain, Droplets, ShieldAlert, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, AreaChart, Area, CartesianGrid } from 'recharts';
 
@@ -24,8 +24,7 @@ const HOTSPOTS = [
     impact: "Allows rescue teams to navigate blindly through storms to reach stranded families.",
     data: [
       { name: 'Dry Season', value: 20, fill: '#0ea5e9' },
-      { name: 'Monsoon', value: 85, fill: '#0284c7' },
-      { name: 'Radar Detected', value: 92, fill: '#00f2fe' }
+      { name: 'Monsoon', value: 85, fill: '#0284c7' }
     ],
     metricName: "Surface Water Saturation (%)"
   },
@@ -40,26 +39,9 @@ const HOTSPOTS = [
     impact: "Protects indigenous lands by automatically alerting authorities to illegal logging.",
     data: [
       { name: 'Healthy Forest', value: 100, fill: '#10b981' },
-      { name: 'Optical View', value: 95, fill: '#34d399' },
-      { name: 'Radar Reality', value: 40, fill: '#ef4444' }
+      { name: 'Optical View', value: 95, fill: '#34d399' }
     ],
     metricName: "Tree Trunk Biomass (Health)"
-  },
-  {
-    id: 'greenland',
-    name: "Jakobshavn, Greenland",
-    type: "Glacial Collapse",
-    lat: 69.2, lon: -50.0,
-    color: [245, 158, 11],
-    icon: <ThermometerSun className="w-6 h-6 text-amber-400" />,
-    description: "As global temperatures rise, ice doesn't just melt—it shatters. By comparing radar images taken 12 days apart, we can measure ice moving at millimeters per day, predicting catastrophic iceberg collapses before they happen.",
-    impact: "Crucial for predicting global sea-level rise and protecting coastal cities worldwide.",
-    data: [
-      { name: '2010 Speed', value: 25, fill: '#fcd34d' },
-      { name: '2020 Speed', value: 65, fill: '#f59e0b' },
-      { name: 'Current Speed', value: 90, fill: '#d97706' }
-    ],
-    metricName: "Ice Flow Acceleration"
   },
   {
     id: 'california',
@@ -72,8 +54,7 @@ const HOTSPOTS = [
     impact: "Helps state governments regulate water usage to prevent aqueducts and bridges from cracking.",
     data: [
       { name: 'Normal', value: 0, fill: '#c084fc' },
-      { name: 'Drought Yr 1', value: -12, fill: '#a855f7' },
-      { name: 'Current Sink', value: -28, fill: '#7e22ce' }
+      { name: 'Drought Yr 1', value: -12, fill: '#a855f7' }
     ],
     metricName: "Ground Sinking (cm)"
   },
@@ -88,33 +69,64 @@ const HOTSPOTS = [
     impact: "Guides replanting efforts to fortify the coastline against the next major typhoon.",
     data: [
       { name: 'Historical', value: 100, fill: '#2dd4bf' },
-      { name: 'Cyclone Damage', value: 65, fill: '#14b8a6' },
-      { name: 'Current Buffer', value: 45, fill: '#0f766e' }
+      { name: 'Cyclone Damage', value: 65, fill: '#14b8a6' }
     ],
     metricName: "Coastal Buffer Integrity (%)"
   }
 ];
 
-const MOCK_TIMESERIES = [
-  { date: 'Jul 01', rvi: 0.85, roughness: -10 },
-  { date: 'Jul 13', rvi: 0.82, roughness: -11 },
-  { date: 'Jul 25', rvi: 0.80, roughness: -15 },
-  { date: 'Aug 06', rvi: 0.75, roughness: -22 }, 
-  { date: 'Aug 18', rvi: 0.78, roughness: -18 },
-  { date: 'Aug 30', rvi: 0.81, roughness: -12 },
+const BASE_TIMESERIES = [
+  { date: 'Jul 01', roughness: -10 },
+  { date: 'Jul 13', roughness: -11 },
+  { date: 'Jul 25', roughness: -15 },
+  { date: 'Aug 06', roughness: -22 }, 
+  { date: 'Aug 18', roughness: -18 },
 ];
 
 export default function PublicStoryPage() {
   const [sliderPosition, setSliderPosition] = useState(50);
   const [activeStory, setActiveStory] = useState(HOTSPOTS[0]);
+  const [realMetrics, setRealMetrics] = useState<any>({});
   
   const [viewState, setViewState] = useState<any>({
     longitude: 92.0,
     latitude: 26.2,
-    zoom: 4,
+    zoom: 3.5, 
     pitch: 30,
-    // FIX: Removed initial transitionDuration to prevent infinite loops
   });
+
+  // Fetch the Kaggle JSON output on load
+  useEffect(() => {
+    fetch('/data/scientist_timeseries.json')
+      .then(res => res.json())
+      .then(data => {
+        const metricsMap: any = {};
+        data.forEach((d: any) => metricsMap[d.region] = d);
+        setRealMetrics(metricsMap);
+      })
+      .catch(err => console.warn("Waiting for Kaggle JSON to be placed in /public/data/"));
+  }, []);
+
+  // Dynamically inject real Kaggle data into the Bar Chart
+  const getDynamicBarData = () => {
+    const liveRvi = realMetrics[activeStory.id]?.mean_rvi;
+    // Map RVI to a percentage for the bar chart display (rough proxy for visualization)
+    const liveValue = liveRvi ? Math.round(liveRvi * 100) : 0;
+    
+    return [
+      ...activeStory.data,
+      { name: 'LIVE (Kaggle)', value: liveValue, fill: `rgb(${activeStory.color.join(',')})` }
+    ];
+  };
+
+  // Dynamically inject real Kaggle data into the Area Chart
+  const getDynamicTimeseries = () => {
+    const liveRoughness = realMetrics[activeStory.id]?.mean_roughness_db;
+    return [
+      ...BASE_TIMESERIES,
+      { date: 'LIVE PASS', roughness: liveRoughness || -12 }
+    ];
+  };
 
   const baseMapLayer = new TileLayer({
     id: 'story-base-map',
@@ -123,11 +135,10 @@ export default function PublicStoryPage() {
     maxZoom: 19,
     tileSize: 256,
     renderSubLayers: (props) => {
-      // Typecast bbox to resolve TS2339
       const bbox = props.tile.bbox as { west: number; south: number; east: number; north: number };
       const { west, south, east, north } = bbox;
       return new BitmapLayer(props, {
-        data: undefined, // Replaced null with undefined to resolve TS2322
+        data: undefined, 
         image: props.data,
         bounds: [west, south, east, north],
       });
@@ -139,7 +150,6 @@ export default function PublicStoryPage() {
     data: HOTSPOTS,
     pickable: true,
     getPosition: (d) => [d.lon, d.lat],
-    // Typecast as a 4-number tuple to resolve TS2322 accessor error
     getFillColor: (d) => (d.id === activeStory.id ? [...d.color, 255] : [...d.color, 120]) as [number, number, number, number],
     getRadius: (d) => d.id === activeStory.id ? 90000 : 50000,
     radiusMinPixels: 8,
@@ -152,7 +162,7 @@ export default function PublicStoryPage() {
           ...v,
           longitude: info.object.lon,
           latitude: info.object.lat,
-          transitionDuration: 1500, // ONLY animate when a point is clicked
+          transitionDuration: 1500, 
         }));
       }
     }
@@ -205,15 +215,15 @@ export default function PublicStoryPage() {
       </section>
 
       {/* 2. INTERACTIVE GLOBAL STORY EXPLORER */}
-      <section className="relative w-full flex flex-col md:flex-row h-auto md:h-[calc(100vh-4rem)] border-y border-slate-800">
+      <section className="relative w-full flex flex-col md:flex-row h-auto md:h-[85vh] min-h-[600px] border-y border-slate-800">
         
         {/* Left: The 3D Story Map */}
-        <div className="w-full md:w-3/5 h-[40vh] md:h-full relative shrink-0">
+        <div className="w-full md:w-3/5 h-[50vh] md:h-full relative shrink-0">
           <DeckGL
             views={GLOBE_VIEW}
             viewState={viewState}
             onViewStateChange={({ viewState }) => setViewState(viewState)}
-            controller={true}
+            controller={{ minZoom: 1.5, maxZoom: 20 }}
             layers={[baseMapLayer, hotspotLayer]}
           />
           <div className="absolute top-6 left-6 hud-backdrop px-4 py-3 rounded-lg pointer-events-none border border-cyan-500/30 hidden sm:block">
@@ -237,7 +247,7 @@ export default function PublicStoryPage() {
                     ...v,
                     longitude: story.lon,
                     latitude: story.lat,
-                    transitionDuration: 1500, // ONLY animate when a point is clicked
+                    transitionDuration: 1500, 
                   }));
                 }}
                 className={`whitespace-nowrap px-4 py-2 rounded-full text-xs font-mono font-bold transition-all ${activeStory.id === story.id ? 'bg-cyan-accent text-space-950 shadow-[0_0_15px_rgba(0,242,254,0.4)]' : 'bg-space-800 text-slate-400 hover:bg-space-700 border border-slate-700'}`}
@@ -275,13 +285,13 @@ export default function PublicStoryPage() {
               <h3 className="text-xs font-mono text-slate-400 mb-4 text-center uppercase shrink-0">{activeStory.metricName}</h3>
               <div className="w-full h-40">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={activeStory.data} margin={{ top: 0, right: 0, left: -25, bottom: 0 }}>
+                  <BarChart data={getDynamicBarData()} margin={{ top: 0, right: 0, left: -25, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
                     <XAxis dataKey="name" stroke="#64748b" tick={{fontSize: 10, fontFamily: 'monospace'}} />
                     <YAxis stroke="#64748b" tick={{fontSize: 10, fontFamily: 'monospace'}} />
                     <Tooltip cursor={{fill: '#1e293b'}} contentStyle={{ backgroundColor: '#07090e', borderColor: '#1e293b', borderRadius: '8px' }} />
                     <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                      {activeStory.data.map((entry, index) => (
+                      {getDynamicBarData().map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.fill} />
                       ))}
                     </Bar>
@@ -334,7 +344,7 @@ export default function PublicStoryPage() {
             
             <div className="w-full aspect-video rounded-xl bg-space-950 border border-slate-700 mb-6 p-4">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={MOCK_TIMESERIES} margin={{ top: 0, right: 0, left: -25, bottom: 0 }}>
+                <AreaChart data={getDynamicTimeseries()} margin={{ top: 0, right: 0, left: -25, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorRoughness" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3}/>

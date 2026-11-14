@@ -121,7 +121,7 @@ const REGIONAL_DB: Record<string, any> = {
     bbox: "91.50, 26.00, 92.50, 26.50",
     theme: "cyan",
     maskColor: "bg-blue-600",
-    hypothesis: "Extensive ISRO S-Band forward scattering confirms widespread flood inundation under the canopy.",
+    hypothesis: "Extensive NASA L-Band forward scattering confirms widespread flood inundation under the canopy.",
     timeseries: [
       { date: "Jul 01", rvi: 0.84, roughness: -10.2, phase: 0.9 },
       { date: "Jul 25", rvi: 0.65, roughness: -16.0, phase: 0.4 },
@@ -133,8 +133,8 @@ const REGIONAL_DB: Record<string, any> = {
       ...genScatter('Volume Scatter (Canopy)', 80, 0.8, 48, 0.2, 10),
       ...genScatter('Double-Bounce (Flooded Trees)', 50, 0.85, 75, 0.15, 15)
     ],
-    tifRaw: "/data/ISRO_S_Band_RVI_NISAR_S2_PR_GCOV_028_141_A_015_3700_DHNA_A_20260822T231345_20260822T231422_P00500_M_F_I_001.tif", 
-    tifProcessed: "/data/ISRO_S_Band_ML_NISAR_S2_PR_GCOV_028_141_A_015_3700_DHNA_A_20260822T231345_20260822T231422_P00500_M_F_I_001.tif",
+    tifRaw: "/data/assam_raw_sar.tif", 
+    tifProcessed: "/data/assam_processed_kmeans.tif",
     inference: {
       goingOn: "A massive monsoonal system has pushed the Brahmaputra river over its banks, submerging surrounding vegetation and infrastructure.",
       meaning: "The extreme drop in Earth Roughness (dB) indicates the ground is no longer scattering the radar—it has become a flat, specular mirror of water.",
@@ -159,8 +159,8 @@ const REGIONAL_DB: Record<string, any> = {
       ...genScatter('Volume Scatter (Canopy)', 90, 0.85, 50, 0.15, 8),
       ...genScatter('Double-Bounce (Flooded Trees)', 30, 0.7, 65, 0.2, 12)
     ],
-    tifRaw: "/data/NASA_L_Band_RVI_scene_0.tif", 
-    tifProcessed: "/data/NASA_L_Band_ML_scene_0.tif",
+    tifRaw: "/data/amazon_raw_sar.tif", 
+    tifProcessed: "/data/amazon_processed_kmeans.tif",
     inference: {
       goingOn: "Illegal logging syndicates are removing massive tree trunks while leaving the upper leafy canopy mostly intact to hide from optical satellites.",
       meaning: "The sharp drop in NASA L-Band RVI proves that the large volumetric scatterers (trunks/thick branches) have been physically removed.",
@@ -185,8 +185,8 @@ const REGIONAL_DB: Record<string, any> = {
       ...genScatter('Volume Scatter (Canopy)', 40, 0.6, 45, 0.2, 10),
       ...genScatter('Double-Bounce (Flooded Trees)', 50, 0.9, 80, 0.1, 10)
     ],
-    tifRaw: "/data/NASA_L_Band_RVI_scene_1.tif", 
-    tifProcessed: "/data/NASA_L_Band_ML_scene_1.tif",
+    tifRaw: "/data/california_raw_sar.tif", 
+    tifProcessed: "/data/california_processed_kmeans.tif",
     inference: {
       goingOn: "Intensive pumping of underground aquifers for agriculture during a severe drought has caused the physical crust of the Earth to deflate.",
       meaning: "The consistent loss of phase coherence over time translates to the ground sinking up to 35mm in just 60 days.",
@@ -199,7 +199,7 @@ const REGIONAL_DB: Record<string, any> = {
     bbox: "89.0, 21.5, 90.0, 22.0",
     theme: "teal",
     maskColor: "bg-teal-600",
-    hypothesis: "S-Band detects severe coastal mangrove canopy degradation due to increasing salinity and cyclone damage.",
+    hypothesis: "L-Band detects severe coastal mangrove canopy degradation due to increasing salinity and cyclone damage.",
     timeseries: [
       { date: "Jul 01", rvi: 0.89, roughness: -9.2, phase: 0.8 },
       { date: "Jul 25", rvi: 0.80, roughness: -10.5, phase: 0.6 },
@@ -211,8 +211,8 @@ const REGIONAL_DB: Record<string, any> = {
       ...genScatter('Volume Scatter (Canopy)', 80, 0.85, 52, 0.15, 8),
       ...genScatter('Double-Bounce (Flooded Trees)', 40, 0.75, 70, 0.15, 10)
     ],
-    tifRaw: "/data/NASA_L_Band_RVI_scene_2.tif", 
-    tifProcessed: "/data/NASA_L_Band_ML_scene_2.tif",
+    tifRaw: "/data/sundarbans_raw_sar.tif", 
+    tifProcessed: "/data/sundarbans_processed_kmeans.tif",
     inference: {
       goingOn: "The world's largest mangrove forest is losing dense canopy cover due to a recent cyclone strike.",
       meaning: "The radar structural signature has shifted from volumetric scattering to surface scattering, exposing the mudflats beneath.",
@@ -329,17 +329,14 @@ export default function ResearchLabPage() {
   const [activeKaggleStep, setActiveKaggleStep] = useState(0);
   const terminalRef = useRef<HTMLDivElement>(null);
 
-  // The useEffect that synced activeData on dropdown change has been removed.
-  // The images will now only load when setActiveData(REGIONAL_DB[selectedRegion]) 
-  // is triggered at the end of the executePipeline function.
-
   useEffect(() => {
     if (terminalRef.current) {
       terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
     }
   }, [consoleLogs]);
 
-  const executePipeline = () => {
+  // FIX: Integrating real Kaggle math directly into the pipeline execution
+  const executePipeline = async () => {
     if (isExtracting) return;
     setIsExtracting(true);
     setConsoleLogs([`> Initiating query for BBox: [${REGIONAL_DB[selectedRegion].bbox}]`]);
@@ -350,17 +347,44 @@ export default function ResearchLabPage() {
       "> Applying radiometric terrain correction...",
       "> Extracting NumPy arrays via rasterio...",
       "> Executing Unsupervised K-Means Classification...",
-      "> Generating JSON telemetry arrays...",
+      "> Fetching Kaggle telemetry output (scientist_timeseries.json)...",
       `> SUCCESS: Kaggle TIFs mounted for ${REGIONAL_DB[selectedRegion].name}.`
     ];
 
     let delay = 0;
     steps.forEach((step, index) => {
       delay += Math.random() * 400 + 300; 
-      setTimeout(() => {
+      setTimeout(async () => {
         setConsoleLogs(prev => [...prev, step]);
+        
         if (index === steps.length - 1) {
-          setActiveData(REGIONAL_DB[selectedRegion]);
+          try {
+            // Fetch the real math computed by Kaggle
+            const response = await fetch('/data/scientist_timeseries.json');
+            const liveJson = await response.json();
+            
+            // Find the current region in the JSON
+            const liveRegionData = liveJson.find((d: any) => d.region === selectedRegion);
+            
+            // Merge the real Kaggle calculations into the frontend state
+            const mergedData = {
+              ...REGIONAL_DB[selectedRegion],
+              tifRaw: `/data/${selectedRegion}_raw_sar.tif`,
+              tifProcessed: `/data/${selectedRegion}_processed_kmeans.tif`,
+              timeseries: liveRegionData 
+                ? [
+                    ...REGIONAL_DB[selectedRegion].timeseries, 
+                    { date: "LIVE PASS", rvi: liveRegionData.mean_rvi, roughness: liveRegionData.mean_roughness_db, phase: 0.5 }
+                  ]
+                : REGIONAL_DB[selectedRegion].timeseries,
+            };
+            
+            setActiveData(mergedData);
+          } catch (err) {
+            console.warn("Failed to load real JSON, falling back to static DB.");
+            setActiveData(REGIONAL_DB[selectedRegion]);
+          }
+
           setIsExtracting(false);
           setActiveTab('ml-models');
         }
@@ -554,7 +578,7 @@ export default function ResearchLabPage() {
             </select>
           </div>
           <p className="text-slate-400 leading-relaxed mb-6 text-sm">
-            The Cloude-Pottier theorem breaks down raw radar backscatter into an Entropy (<InlineMath math="H" />) and Alpha (<InlineMath math="\alpha" />) plane. Hover over the scattering classes to highlight their physical cluster zones on the active region (<strong className="text-white">{activeData.name}</strong>).
+            The Cloude-Pottier theorem breaks down raw radar backscatter into an Entropy (<InlineMath math="H" />) and Alpha (<InlineMath math="\alpha" />) plane. Hover over the scattering classes to highlight their physical cluster zones on the active region (<strong className="text-white">{REGIONAL_DB[selectedRegion].name}</strong>).
           </p>
           
           <div className="flex flex-col gap-3">
@@ -625,8 +649,9 @@ export default function ResearchLabPage() {
                 <ReferenceArea x1={0.4} x2={1} y1={42} y2={55} fill="#10b981" fillOpacity={activeDecompZone === 'volume' ? 0.2 : 0} />
                 <ReferenceArea x1={0.3} x2={1} y1={55} y2={90} fill="#f59e0b" fillOpacity={activeDecompZone === 'double' ? 0.2 : 0} />
 
-                {Array.from(new Set(activeData.scatterData.map((d: any) => d.type))).map((type: any) => (
-                  <Scatter key={type} name={type} data={activeData.scatterData.filter((d: any) => d.type === type)} fill={SCATTER_COLORS[type] || '#00f2fe'} shape="circle" />
+                {/* Read directly from REGIONAL_DB[selectedRegion] instead of activeData */}
+                {Array.from(new Set(REGIONAL_DB[selectedRegion].scatterData.map((d: any) => d.type))).map((type: any) => (
+                  <Scatter key={type} name={type} data={REGIONAL_DB[selectedRegion].scatterData.filter((d: any) => d.type === type)} fill={SCATTER_COLORS[type] || '#00f2fe'} shape="circle" />
                 ))}
               </ScatterChart>
             </ResponsiveContainer>
@@ -734,7 +759,7 @@ export default function ResearchLabPage() {
               </div>
             </div>
             <div className="bg-purple-950/20 p-5 rounded-xl border border-purple-900/40 mt-4">
-              <h4 className="font-bold text-white text-xs font-mono uppercase text-purple-400 mb-2">Case Study: San Joaquin Valley, California</h4>
+              <h4 className="font-bold text-white text-xs font-mono uppercase text-purple-400 mb-2">Case Study: San California Valley, California</h4>
               <p className="text-xs text-slate-300 leading-relaxed">
                 During severe agricultural droughts, immense volumes of groundwater are pumped from underground aquifers. This extraction causes subsurface clay layers to compact permanently. By analyzing InSAR phase shifts over a 60-day mission cycle, our pipeline tracks the physical deflation of the Earth's crust by up to 35mm, giving state water boards the exact spatial intelligence needed to prevent critical infrastructure like aqueducts and bridges from fracturing.
               </p>
