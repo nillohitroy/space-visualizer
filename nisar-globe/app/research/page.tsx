@@ -273,7 +273,6 @@ const InteractiveHero = () => {
       onMouseLeave={() => setMousePos({ x: 0.5, y: 0.5 })}
       className="mb-10 p-8 sm:p-12 rounded-2xl border border-slate-800 shadow-2xl relative overflow-hidden bg-space-950 group cursor-crosshair"
     >
-      {/* Dynamic Radar Glow (follows mouse) */}
       <div 
         className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
         style={{
@@ -281,10 +280,8 @@ const InteractiveHero = () => {
         }}
       />
       
-      {/* Radar Grid Background */}
       <div className="absolute inset-0 bg-[linear-gradient(rgba(0,242,254,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(0,242,254,0.05)_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_50%,#000_20%,transparent_100%)] pointer-events-none" />
      
-      {/* Targeting Crosshairs (snaps to mouse) */}
       <div 
         className="absolute top-0 bottom-0 w-px bg-cyan-500/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" 
         style={{ left: `${mousePos.x * 100}%` }} 
@@ -294,7 +291,6 @@ const InteractiveHero = () => {
         style={{ top: `${mousePos.y * 100}%` }} 
       />
 
-      {/* Main Content (slight parallax shift) */}
       <div 
         className="relative z-10 transition-transform duration-300 ease-out" 
         style={{ transform: `translate(${(mousePos.x - 0.5) * 15}px, ${(mousePos.y - 0.5) * 15}px)` }}
@@ -319,8 +315,17 @@ export default function ResearchLabPage() {
   const [activeTab, setActiveTab] = useState<'ml-models' | 'inference' | 'telemetry'>('ml-models');
   const [activeDecompZone, setActiveDecompZone] = useState<'surface' | 'volume' | 'double' | null>(null);
   
-  const [selectedRegion, setSelectedRegion] = useState('assam');
+  // FIX 1: Splitting State
+  // extractionRegion handles the terminal logic and TIF engine
+  const [extractionRegion, setExtractionRegion] = useState('assam');
+  // scatterRegion exclusively handles the Cloude-Pottier H/α widget
+  const [scatterRegion, setScatterRegion] = useState('assam');
+  // activeData manages the main rendering workspace (only updates when 'Execute Pipeline' is clicked)
   const [activeData, setActiveData] = useState(REGIONAL_DB['assam']);
+  
+  // liveData stores the real JSON parsed directly from Kaggle
+  const [liveData, setLiveData] = useState<any>({});
+  
   const [isExtracting, setIsExtracting] = useState(false);
   const [consoleLogs, setConsoleLogs] = useState<string[]>([
     "> System initialized. Awaiting spatial parameters..."
@@ -335,11 +340,22 @@ export default function ResearchLabPage() {
     }
   }, [consoleLogs]);
 
-  // FIX: Integrating real Kaggle math directly into the pipeline execution
+  // FIX 2: Fetch the real Kaggle JSON immediately on page load so it's ready for the Scatter Chart
+  useEffect(() => {
+    fetch('/data/scientist_timeseries.json')
+      .then(res => res.json())
+      .then(data => {
+        const metricsMap: any = {};
+        data.forEach((d: any) => metricsMap[d.region] = d);
+        setLiveData(metricsMap);
+      })
+      .catch(() => console.warn("Awaiting real JSON telemetry..."));
+  }, []);
+
   const executePipeline = async () => {
     if (isExtracting) return;
     setIsExtracting(true);
-    setConsoleLogs([`> Initiating query for BBox: [${REGIONAL_DB[selectedRegion].bbox}]`]);
+    setConsoleLogs([`> Initiating query for BBox: [${REGIONAL_DB[extractionRegion].bbox}]`]);
 
     const steps = [
       "> Authenticating ASF DAAC / ISRO Bhoonidhi credentials...",
@@ -348,7 +364,7 @@ export default function ResearchLabPage() {
       "> Extracting NumPy arrays via rasterio...",
       "> Executing Unsupervised K-Means Classification...",
       "> Fetching Kaggle telemetry output (scientist_timeseries.json)...",
-      `> SUCCESS: Kaggle TIFs mounted for ${REGIONAL_DB[selectedRegion].name}.`
+      `> SUCCESS: Kaggle TIFs mounted for ${REGIONAL_DB[extractionRegion].name}.`
     ];
 
     let delay = 0;
@@ -359,30 +375,35 @@ export default function ResearchLabPage() {
         
         if (index === steps.length - 1) {
           try {
-            // Fetch the real math computed by Kaggle
+            // Re-fetch the math to ensure it is perfectly synced during pipeline execution
             const response = await fetch('/data/scientist_timeseries.json');
             const liveJson = await response.json();
             
-            // Find the current region in the JSON
-            const liveRegionData = liveJson.find((d: any) => d.region === selectedRegion);
+            const metricsMap: any = {};
+            liveJson.forEach((d: any) => metricsMap[d.region] = d);
+            setLiveData(metricsMap); // globally update
             
-            // Merge the real Kaggle calculations into the frontend state
+            const liveRegionData = metricsMap[extractionRegion];
+            
+            // FIX 3: Push JSON data to the Telemetry Workspace
             const mergedData = {
-              ...REGIONAL_DB[selectedRegion],
-              tifRaw: `/data/${selectedRegion}_raw_sar.tif`,
-              tifProcessed: `/data/${selectedRegion}_processed_kmeans.tif`,
+              ...REGIONAL_DB[extractionRegion],
+              tifRaw: `/data/${extractionRegion}_raw_sar.tif`,
+              tifProcessed: `/data/${extractionRegion}_processed_kmeans.tif`,
               timeseries: liveRegionData 
                 ? [
-                    ...REGIONAL_DB[selectedRegion].timeseries, 
+                    ...REGIONAL_DB[extractionRegion].timeseries, 
+                    // This appends the exact values from the JSON directly into the Telemetry line chart
                     { date: "LIVE PASS", rvi: liveRegionData.mean_rvi, roughness: liveRegionData.mean_roughness_db, phase: 0.5 }
                   ]
-                : REGIONAL_DB[selectedRegion].timeseries,
+                : REGIONAL_DB[extractionRegion].timeseries,
             };
             
+            // Apply this completely independently of the Scatter Chart
             setActiveData(mergedData);
           } catch (err) {
             console.warn("Failed to load real JSON, falling back to static DB.");
-            setActiveData(REGIONAL_DB[selectedRegion]);
+            setActiveData(REGIONAL_DB[extractionRegion]);
           }
 
           setIsExtracting(false);
@@ -391,6 +412,9 @@ export default function ResearchLabPage() {
       }, delay);
     });
   };
+
+  // Derive the active scatter data from the JSON strictly, falling back only if it's completely missing
+  const currentScatterData = liveData[scatterRegion]?.scatterData || REGIONAL_DB[scatterRegion].scatterData;
 
   return (
     <div className="min-h-screen bg-space-950 bg-grid-mesh px-4 sm:px-6 lg:px-12 py-10 font-sans text-slate-300 flex flex-col">
@@ -522,8 +546,12 @@ export default function ResearchLabPage() {
               <label className="block text-[10px] font-mono text-slate-400 mb-2 uppercase tracking-wider">Target Remote Region</label>
               <select 
                 className="w-full bg-transparent text-white font-bold text-sm outline-none cursor-pointer appearance-none"
-                value={selectedRegion}
-                onChange={(e) => setSelectedRegion(e.target.value)}
+                value={extractionRegion}
+                onChange={(e) => {
+                  // FIX 4: Only register the intent to change the workspace. 
+                  // It will NOT break the TIF engine until executePipeline is physically clicked.
+                  setExtractionRegion(e.target.value);
+                }}
                 disabled={isExtracting}
               >
                 <option value="assam" className="bg-space-900 text-white">Assam (Flood Dynamics)</option>
@@ -568,8 +596,12 @@ export default function ResearchLabPage() {
             </div>
             <select 
               className="bg-space-900 border border-slate-700 text-cyan-accent text-xs font-mono rounded px-2 py-1 outline-none cursor-pointer"
-              value={selectedRegion}
-              onChange={(e) => setSelectedRegion(e.target.value)}
+              value={scatterRegion}
+              onChange={(e) => {
+                // FIX 5: Changing this ONLY changes the scatter chart data. 
+                // The TIF rendering engine remains 100% untouched.
+                setScatterRegion(e.target.value);
+              }}
             >
               <option value="assam">Assam</option>
               <option value="amazon">Amazon</option>
@@ -578,7 +610,7 @@ export default function ResearchLabPage() {
             </select>
           </div>
           <p className="text-slate-400 leading-relaxed mb-6 text-sm">
-            The Cloude-Pottier theorem breaks down raw radar backscatter into an Entropy (<InlineMath math="H" />) and Alpha (<InlineMath math="\alpha" />) plane. Hover over the scattering classes to highlight their physical cluster zones on the active region (<strong className="text-white">{REGIONAL_DB[selectedRegion].name}</strong>).
+            The Cloude-Pottier theorem breaks down raw radar backscatter into an Entropy (<InlineMath math="H" />) and Alpha (<InlineMath math="\alpha" />) plane. Hover over the scattering classes to highlight their physical cluster zones on the active region (<strong className="text-white">{REGIONAL_DB[scatterRegion].name}</strong>).
           </p>
           
           <div className="flex flex-col gap-3">
@@ -632,30 +664,59 @@ export default function ResearchLabPage() {
               <MousePointerClick className="w-4 h-4" /> Hover left cards to interact
             </div>
           )}
+          
           <div className="w-full h-[400px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <ScatterChart margin={{ top: 20, right: 20, bottom: 30, left: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                <XAxis type="number" dataKey="entropy" name="Entropy (H)" stroke="#64748b" tick={{fontSize: 10, fontFamily: 'monospace'}} domain={[0, 1]}>
-                  <Label value="Scattering Entropy (H)" offset={-15} position="insideBottom" fill="#94a3b8" style={{ fontSize: '12px', fontFamily: 'monospace' }} />
-                </XAxis>
-                <YAxis type="number" dataKey="alpha" name="Alpha Angle" stroke="#64748b" tick={{fontSize: 10, fontFamily: 'monospace'}} domain={[0, 90]}>
-                  <Label value="Alpha Angle (α°)" angle={-90} position="insideLeft" fill="#94a3b8" style={{ fontSize: '12px', fontFamily: 'monospace' }} />
-                </YAxis>
-                <ZAxis type="category" dataKey="type" name="Classification" />
-                <Tooltip cursor={{strokeDasharray: '3 3'}} contentStyle={{ backgroundColor: '#07090e', borderColor: '#1e293b' }} itemStyle={{ fontFamily: 'monospace', fontSize: '12px' }} />
+            {(() => {
+              const getBounds = (type: string) => {
+                const points = currentScatterData.filter((d: any) => d.type === type);
+                if (!points.length) return { x1: 0, x2: 0, y1: 0, y2: 0 };
                 
-                <ReferenceArea x1={0} x2={1} y1={0} y2={42} fill="#3b82f6" fillOpacity={activeDecompZone === 'surface' ? 0.2 : 0} />
-                <ReferenceArea x1={0.4} x2={1} y1={42} y2={55} fill="#10b981" fillOpacity={activeDecompZone === 'volume' ? 0.2 : 0} />
-                <ReferenceArea x1={0.3} x2={1} y1={55} y2={90} fill="#f59e0b" fillOpacity={activeDecompZone === 'double' ? 0.2 : 0} />
+                const xVals = points.map((p: any) => p.entropy);
+                const yVals = points.map((p: any) => p.alpha);
+                
+                return {
+                  // FIX 1: Removed manual padding here so it perfectly snaps to the outer dots
+                  x1: Math.min(...xVals),
+                  x2: Math.max(...xVals),
+                  y1: Math.min(...yVals),
+                  y2: Math.max(...yVals)
+                };
+              };
 
-                {/* Read directly from REGIONAL_DB[selectedRegion] instead of activeData */}
-                {Array.from(new Set(REGIONAL_DB[selectedRegion].scatterData.map((d: any) => d.type))).map((type: any) => (
-                  <Scatter key={type} name={type} data={REGIONAL_DB[selectedRegion].scatterData.filter((d: any) => d.type === type)} fill={SCATTER_COLORS[type] || '#00f2fe'} shape="circle" />
-                ))}
-              </ScatterChart>
-            </ResponsiveContainer>
+              const surfaceBounds = getBounds('Surface Scatter (Water/Soil)');
+              const volumeBounds = getBounds('Volume Scatter (Canopy)');
+              const doubleBounds = getBounds('Double-Bounce (Flooded Trees)');
+
+              return (
+                <ResponsiveContainer width="100%" height="100%">
+                  <ScatterChart margin={{ top: 20, right: 20, bottom: 30, left: 20 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                    
+                    {/* FIX 2: Let the axes pad themselves naturally to fit the boxes */}
+                    <XAxis type="number" dataKey="entropy" name="Entropy (H)" stroke="#64748b" tick={{fontSize: 10, fontFamily: 'monospace'}} domain={['dataMin - 0.1', 'dataMax + 0.1']}>
+                      <Label value="Scattering Entropy (H)" offset={-15} position="insideBottom" fill="#94a3b8" style={{ fontSize: '12px', fontFamily: 'monospace' }} />
+                    </XAxis>
+                    <YAxis type="number" dataKey="alpha" name="Alpha Angle" stroke="#64748b" tick={{fontSize: 10, fontFamily: 'monospace'}} domain={['dataMin - 2', 'dataMax + 2']}>
+                      <Label value="Alpha Angle (α°) / Abs dB" angle={-90} position="insideLeft" fill="#94a3b8" style={{ fontSize: '12px', fontFamily: 'monospace' }} />
+                    </YAxis>
+                    <ZAxis type="category" dataKey="type" name="Classification" />
+                    <Tooltip cursor={{strokeDasharray: '3 3'}} contentStyle={{ backgroundColor: '#07090e', borderColor: '#1e293b' }} itemStyle={{ fontFamily: 'monospace', fontSize: '12px' }} />
+                    
+                    {/* FIX 3: Added ifOverflow="extendDomain" to prevent Recharts from hiding the boxes */}
+                    <ReferenceArea x1={surfaceBounds.x1} x2={surfaceBounds.x2} y1={surfaceBounds.y1} y2={surfaceBounds.y2} fill="#3b82f6" fillOpacity={activeDecompZone === 'surface' ? 0.2 : 0} ifOverflow="extendDomain" />
+                    <ReferenceArea x1={volumeBounds.x1} x2={volumeBounds.x2} y1={volumeBounds.y1} y2={volumeBounds.y2} fill="#10b981" fillOpacity={activeDecompZone === 'volume' ? 0.2 : 0} ifOverflow="extendDomain" />
+                    <ReferenceArea x1={doubleBounds.x1} x2={doubleBounds.x2} y1={doubleBounds.y1} y2={doubleBounds.y2} fill="#f59e0b" fillOpacity={activeDecompZone === 'double' ? 0.2 : 0} ifOverflow="extendDomain" />
+
+                    {Array.from(new Set(currentScatterData.map((d: any) => d.type))).map((type: any) => (
+                      <Scatter key={type} name={type} data={currentScatterData.filter((d: any) => d.type === type)} fill={SCATTER_COLORS[type] || '#00f2fe'} shape="circle" />
+                    ))}
+                  </ScatterChart>
+                </ResponsiveContainer>
+              );
+            })()}
           </div>
+
+
         </div>
       </div>
 
@@ -759,7 +820,7 @@ export default function ResearchLabPage() {
               </div>
             </div>
             <div className="bg-purple-950/20 p-5 rounded-xl border border-purple-900/40 mt-4">
-              <h4 className="font-bold text-white text-xs font-mono uppercase text-purple-400 mb-2">Case Study: San California Valley, California</h4>
+              <h4 className="font-bold text-white text-xs font-mono uppercase text-purple-400 mb-2">Case Study: San Joaquin Valley, California</h4>
               <p className="text-xs text-slate-300 leading-relaxed">
                 During severe agricultural droughts, immense volumes of groundwater are pumped from underground aquifers. This extraction causes subsurface clay layers to compact permanently. By analyzing InSAR phase shifts over a 60-day mission cycle, our pipeline tracks the physical deflation of the Earth's crust by up to 35mm, giving state water boards the exact spatial intelligence needed to prevent critical infrastructure like aqueducts and bridges from fracturing.
               </p>

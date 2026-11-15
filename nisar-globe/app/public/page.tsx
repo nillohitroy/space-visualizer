@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import DeckGL from '@deck.gl/react';
 import { _GlobeView as GlobeView } from '@deck.gl/core';
 import { TileLayer } from '@deck.gl/geo-layers';
@@ -24,10 +24,15 @@ const HOTSPOTS = [
     impact: "Allows rescue teams to navigate blindly through storms to reach stranded families.",
     data: [
       { name: 'Dry Season', value: 20, fill: '#0ea5e9' },
-      { name: 'Monsoon', value: 85, fill: '#0284c7' },
-      { name: 'Radar Detected', value: 92, fill: '#00f2fe' }
+      { name: 'Monsoon', value: 85, fill: '#0284c7' }
     ],
-    metricName: "Surface Water Saturation (%)"
+    metricName: "Surface Water Saturation (%)",
+    timeseries: [
+      { date: "Jul 01", roughness: -10.2 },
+      { date: "Jul 25", roughness: -16.0 },
+      { date: "Aug 06", roughness: -22.5 },
+      { date: "Aug 30", roughness: -12.1 }
+    ]
   },
   {
     id: 'amazon',
@@ -40,26 +45,15 @@ const HOTSPOTS = [
     impact: "Protects indigenous lands by automatically alerting authorities to illegal logging.",
     data: [
       { name: 'Healthy Forest', value: 100, fill: '#10b981' },
-      { name: 'Optical View', value: 95, fill: '#34d399' },
-      { name: 'Radar Reality', value: 40, fill: '#ef4444' }
+      { name: 'Optical View', value: 95, fill: '#34d399' }
     ],
-    metricName: "Tree Trunk Biomass (Health)"
-  },
-  {
-    id: 'greenland',
-    name: "Jakobshavn, Greenland",
-    type: "Glacial Collapse",
-    lat: 69.2, lon: -50.0,
-    color: [245, 158, 11],
-    icon: <ThermometerSun className="w-6 h-6 text-amber-400" />,
-    description: "As global temperatures rise, ice doesn't just melt—it shatters. By comparing radar images taken 12 days apart, we can measure ice moving at millimeters per day, predicting catastrophic iceberg collapses before they happen.",
-    impact: "Crucial for predicting global sea-level rise and protecting coastal cities worldwide.",
-    data: [
-      { name: '2010 Speed', value: 25, fill: '#fcd34d' },
-      { name: '2020 Speed', value: 65, fill: '#f59e0b' },
-      { name: 'Current Speed', value: 90, fill: '#d97706' }
-    ],
-    metricName: "Ice Flow Acceleration"
+    metricName: "Tree Trunk Biomass (Health)",
+    timeseries: [
+      { date: "Jul 01", roughness: -8.1 },
+      { date: "Jul 25", roughness: -9.0 },
+      { date: "Aug 06", roughness: -14.2 },
+      { date: "Aug 30", roughness: -14.8 }
+    ]
   },
   {
     id: 'california',
@@ -72,10 +66,15 @@ const HOTSPOTS = [
     impact: "Helps state governments regulate water usage to prevent aqueducts and bridges from cracking.",
     data: [
       { name: 'Normal', value: 0, fill: '#c084fc' },
-      { name: 'Drought Yr 1', value: -12, fill: '#a855f7' },
-      { name: 'Current Sink', value: -28, fill: '#7e22ce' }
+      { name: 'Drought Yr 1', value: -12, fill: '#a855f7' }
     ],
-    metricName: "Ground Sinking (cm)"
+    metricName: "Ground Sinking (cm)",
+    timeseries: [
+      { date: "Jul 01", roughness: -15.2 },
+      { date: "Jul 25", roughness: -15.5 },
+      { date: "Aug 06", roughness: -15.3 },
+      { date: "Aug 30", roughness: -15.4 }
+    ]
   },
   {
     id: 'sundarbans',
@@ -88,25 +87,22 @@ const HOTSPOTS = [
     impact: "Guides replanting efforts to fortify the coastline against the next major typhoon.",
     data: [
       { name: 'Historical', value: 100, fill: '#2dd4bf' },
-      { name: 'Cyclone Damage', value: 65, fill: '#14b8a6' },
-      { name: 'Current Buffer', value: 45, fill: '#0f766e' }
+      { name: 'Cyclone Damage', value: 65, fill: '#14b8a6' }
     ],
-    metricName: "Coastal Buffer Integrity (%)"
+    metricName: "Coastal Buffer Integrity (%)",
+    timeseries: [
+      { date: "Jul 01", roughness: -9.2 },
+      { date: "Jul 25", roughness: -10.5 },
+      { date: "Aug 06", roughness: -15.5 },
+      { date: "Aug 30", roughness: -13.1 }
+    ]
   }
-];
-
-const MOCK_TIMESERIES = [
-  { date: 'Jul 01', rvi: 0.85, roughness: -10 },
-  { date: 'Jul 13', rvi: 0.82, roughness: -11 },
-  { date: 'Jul 25', rvi: 0.80, roughness: -15 },
-  { date: 'Aug 06', rvi: 0.75, roughness: -22 }, 
-  { date: 'Aug 18', rvi: 0.78, roughness: -18 },
-  { date: 'Aug 30', rvi: 0.81, roughness: -12 },
 ];
 
 export default function PublicStoryPage() {
   const [sliderPosition, setSliderPosition] = useState(50);
   const [activeStory, setActiveStory] = useState(HOTSPOTS[0]);
+  const [realMetrics, setRealMetrics] = useState<any>({});
   
   const [viewState, setViewState] = useState<any>({
     longitude: 92.0,
@@ -116,6 +112,44 @@ export default function PublicStoryPage() {
     minZoom: 1.5,
     maxZoom: 20
   });
+
+  // Fetch the JSON output on load to populate real data
+  useEffect(() => {
+    fetch('/data/scientist_timeseries.json')
+      .then(res => res.json())
+      .then(data => {
+        const metricsMap: any = {};
+        data.forEach((d: any) => metricsMap[d.region] = d);
+        setRealMetrics(metricsMap);
+      })
+      .catch(err => console.warn("Waiting for JSON to be placed in /public/data/"));
+  }, []);
+
+  // Dynamically inject real data into the Bar Chart (No Kaggle mention)
+  const getDynamicBarData = () => {
+    const liveData = realMetrics[activeStory.id];
+    
+    if (!liveData) return activeStory.data;
+    
+    const liveValue = Math.min(100, Math.max(0, Math.round(liveData.mean_rvi * 100)));
+    
+    return [
+      ...activeStory.data,
+      { name: 'Latest Pass', value: liveValue, fill: `rgb(${activeStory.color.join(',')})` }
+    ];
+  };
+
+  // Dynamically inject real data into the Area Chart
+  const getDynamicTimeseries = () => {
+    const liveData = realMetrics[activeStory.id];
+    
+    if (!liveData) return activeStory.timeseries;
+    
+    return [
+      ...activeStory.timeseries,
+      { date: 'Latest Pass', roughness: liveData.mean_roughness_db }
+    ];
+  };
 
   const baseMapLayer = new TileLayer({
     id: 'story-base-map',
@@ -212,13 +246,11 @@ export default function PublicStoryPage() {
             views={GLOBE_VIEW}
             viewState={viewState}
             onViewStateChange={({ viewState: nextViewState }) => {
-              // FIX: Strip out the 1500ms transition duration the moment the user 
-              // touches the mouse, preventing the "stuck/frozen" zooming bug.
               const { transitionDuration, transitionInterpolator, ...manualState } = nextViewState;
               
               setViewState({
                 ...manualState,
-                zoom: Math.max(1.5, manualState.zoom), // Enforce minimum zoom
+                zoom: Math.max(1.5, manualState.zoom),
                 minZoom: 1.5,
                 maxZoom: 20
               });
@@ -285,13 +317,13 @@ export default function PublicStoryPage() {
               <h3 className="text-xs font-mono text-slate-400 mb-4 text-center uppercase shrink-0">{activeStory.metricName}</h3>
               <div className="w-full h-40">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={activeStory.data} margin={{ top: 0, right: 0, left: -25, bottom: 0 }}>
+                  <BarChart data={getDynamicBarData()} margin={{ top: 0, right: 0, left: -25, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
                     <XAxis dataKey="name" stroke="#64748b" tick={{fontSize: 10, fontFamily: 'monospace'}} />
                     <YAxis stroke="#64748b" tick={{fontSize: 10, fontFamily: 'monospace'}} />
                     <Tooltip cursor={{fill: '#1e293b'}} contentStyle={{ backgroundColor: '#07090e', borderColor: '#1e293b', borderRadius: '8px' }} />
                     <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                      {activeStory.data.map((entry, index) => (
+                      {getDynamicBarData().map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.fill} />
                       ))}
                     </Bar>
@@ -344,7 +376,7 @@ export default function PublicStoryPage() {
             
             <div className="w-full aspect-video rounded-xl bg-space-950 border border-slate-700 mb-6 p-4">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={MOCK_TIMESERIES} margin={{ top: 0, right: 0, left: -25, bottom: 0 }}>
+                <AreaChart data={getDynamicTimeseries()} margin={{ top: 0, right: 0, left: -25, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorRoughness" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3}/>
@@ -353,7 +385,8 @@ export default function PublicStoryPage() {
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
                   <XAxis dataKey="date" stroke="#64748b" tick={{fontSize: 10, fontFamily: 'monospace'}} />
-                  <YAxis stroke="#64748b" tick={{fontSize: 10, fontFamily: 'monospace'}} domain={[-25, -5]} />
+                  {/* YAxis domain updated to auto so deep negative spikes like Amazon's don't get clipped */}
+                  <YAxis stroke="#64748b" tick={{fontSize: 10, fontFamily: 'monospace'}} domain={['auto', 'auto']} />
                   <Tooltip contentStyle={{ backgroundColor: '#07090e', borderColor: '#1e293b' }} itemStyle={{ fontFamily: 'monospace', fontSize: '12px' }} />
                   <Area type="monotone" dataKey="roughness" stroke="#f59e0b" strokeWidth={2} fillOpacity={1} fill="url(#colorRoughness)" name="Earth Roughness" />
                 </AreaChart>
